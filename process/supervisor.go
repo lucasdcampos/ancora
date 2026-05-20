@@ -32,10 +32,20 @@ func (s *Supervisor) Start(projectName, command, envVars string) (int, error) {
 	cmd := exec.Command("sh", "-c", command)
 	cmd.Dir = repoDir
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	
+	logFile, err := os.OpenFile(filepath.Join(repoDir, "service.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err == nil {
+		cmd.Stdout = logFile
+		cmd.Stderr = logFile
+	} else {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
 
 	if err := cmd.Start(); err != nil {
+		if logFile != nil {
+			logFile.Close()
+		}
 		return 0, fmt.Errorf("failed to start command: %w", err)
 	}
 
@@ -43,11 +53,17 @@ func (s *Supervisor) Start(projectName, command, envVars string) (int, error) {
 	if err != nil {
 		cmd.Process.Kill()
 		cmd.Wait()
+		if logFile != nil {
+			logFile.Close()
+		}
 		return 0, fmt.Errorf("failed to get pgid: %w", err)
 	}
 
 	go func() {
 		cmd.Wait()
+		if logFile != nil {
+			logFile.Close()
+		}
 	}()
 
 	return pgid, nil
@@ -79,8 +95,32 @@ func (s *Supervisor) RunBuild(projectName, command, envVars string) error {
 
 	cmd := exec.Command("sh", "-c", command)
 	cmd.Dir = repoDir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	
+	logFile, err := os.OpenFile(filepath.Join(repoDir, "service.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err == nil {
+		defer logFile.Close()
+		cmd.Stdout = logFile
+		cmd.Stderr = logFile
+	} else {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
 
 	return cmd.Run()
+}
+
+func (s *Supervisor) GetLogs(projectName string, lines int) (string, error) {
+	logPath := filepath.Join(s.BaseDir, projectName, "service.log")
+	
+	if _, err := os.Stat(logPath); os.IsNotExist(err) {
+		return "No logs available yet for this project.", nil
+	}
+
+	cmd := exec.Command("tail", "-n", fmt.Sprintf("%d", lines), logPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("failed to tail logs: %w", err)
+	}
+
+	return string(output), nil
 }

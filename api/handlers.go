@@ -91,6 +91,18 @@ func (s *Server) HandleStopProject(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func (s *Server) HandleGetLogs(w http.ResponseWriter, r *http.Request) {
+	name := chi.URLParam(r, "name")
+	logs, err := s.Runner.GetLogs(name, 100)
+	if err != nil {
+		http.Error(w, "Failed to get logs: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/plain")
+	w.Write([]byte(logs))
+}
+
 type ProjectMetrics struct {
 	Name       string  `json:"name"`
 	PGID       int     `json:"pgid"`

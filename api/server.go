@@ -48,6 +48,7 @@ func (s *Server) Start(port string) {
 
 			r.Post("/projects/{name}/restart", s.HandleRestartProject)
 			r.Post("/projects/{name}/stop", s.HandleStopProject)
+			r.Get("/projects/{name}/logs", s.HandleGetLogs)
 
 			r.Get("/metrics", s.HandleGetMetrics)
 		})

@@ -3,6 +3,7 @@ import { useDashboard } from './hooks/useDashboard'
 import type { Project } from './types'
 import ProjectCard from './components/ProjectCard'
 import ProjectModal from './components/ProjectModal'
+import ProjectLogsModal from './components/ProjectLogsModal'
 import SettingsModal from './components/SettingsModal'
 import Toast from './components/Toast'
 
@@ -21,6 +22,8 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
 
   const [showSettings, setShowSettings] = useState(false)
   const [showProjectModal, setShowProjectModal] = useState(false)
+  const [showLogsModal, setShowLogsModal] = useState(false)
+  const [selectedProjectForLogs, setSelectedProjectForLogs] = useState<string | null>(null)
   const [editingProject, setEditingProject] = useState<Project | undefined>(undefined)
 
   const projects = config?.projects || []
@@ -39,6 +42,11 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
   const openEditProject = (p: Project) => {
     setEditingProject(p)
     setShowProjectModal(true)
+  }
+
+  const openLogs = (name: string) => {
+    setSelectedProjectForLogs(name)
+    setShowLogsModal(true)
   }
 
   return (
@@ -67,6 +75,7 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
               onToggle={toggleProject}
               onEdit={openEditProject}
               onDelete={deleteProject}
+              onShowLogs={openLogs}
             />
           ))}
           
@@ -94,6 +103,13 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
           initialData={editingProject}
           onSave={saveProject}
           onClose={() => setShowProjectModal(false)}
+        />
+      )}
+
+      {showLogsModal && selectedProjectForLogs && (
+        <ProjectLogsModal
+          projectName={selectedProjectForLogs}
+          onClose={() => setShowLogsModal(false)}
         />
       )}
     </div>

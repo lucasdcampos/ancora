@@ -169,6 +169,10 @@ func (r *Runner) GetState(name string) *ProjectState {
 	return nil
 }
 
+func (r *Runner) GetLogs(name string, lines int) (string, error) {
+	return r.Supervisor.GetLogs(name, lines)
+}
+
 func (r *Runner) updateStatus(name, status, hash string, pgid int) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
