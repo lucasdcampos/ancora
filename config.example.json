@@ -1,0 +1,27 @@
+{
+  "github_token": "",
+  "admin_credentials": "",
+  "interval_seconds": 60,
+  "projects": [
+    {
+      "name": "my-api-service",
+      "repo_url": "https://github.com/user/my-api",
+      "branch": "main",
+      "build_command": "npm install && npm run build",
+      "deploy_command": "node dist/main.js",
+      "env_vars": "NODE_ENV=production\nDB_HOST=localhost",
+      "enabled": true,
+      "icon": "server"
+    },
+    {
+      "name": "static-website",
+      "repo_url": "https://github.com/user/portfolio",
+      "branch": "master",
+      "build_command": "npm install && npm run build",
+      "deploy_command": "serve -s dist -l $PORT",
+      "env_vars": "ANOTHER_VAR=value",
+      "enabled": false,
+      "icon": "globe"
+    }
+  ]
+}
