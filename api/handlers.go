@@ -3,6 +3,8 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"ancora/config"
 	"ancora/metrics"
@@ -110,6 +112,7 @@ type ProjectMetrics struct {
 	MemoryRSS  uint64  `json:"memory_rss"`
 	CommitHash string  `json:"commit_hash"`
 	Status     string  `json:"status"`
+	Port       int     `json:"port"`
 }
 
 func (s *Server) HandleGetMetrics(w http.ResponseWriter, r *http.Request) {
@@ -149,9 +152,22 @@ func (s *Server) HandleGetMetrics(w http.ResponseWriter, r *http.Request) {
 			MemoryRSS:  mem,
 			CommitHash: state.CommitHash,
 			Status:     state.Status,
+			Port:       parsePort(proj.EnvVars),
 		})
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(results)
+}
+
+func parsePort(envVars string) int {
+	lines := strings.Split(envVars, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "PORT=") {
+			p, _ := strconv.Atoi(strings.TrimPrefix(line, "PORT="))
+			return p
+		}
+	}
+	return 0
 }

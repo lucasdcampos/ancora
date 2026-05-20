@@ -6,6 +6,7 @@ export interface Project {
   deploy_command: string
   env_vars: string
   enabled: boolean
+  icon: string
 }
 
 export interface Metrics {
@@ -15,6 +16,7 @@ export interface Metrics {
   memory_rss: number
   commit_hash: string
   status: string
+  port: number
 }
 
 export interface Config {

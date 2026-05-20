@@ -13,6 +13,7 @@ type Project struct {
 	DeployCommand string `json:"deploy_command"`
 	EnvVars       string `json:"env_vars"`
 	Enabled       bool   `json:"enabled"`
+	Icon          string `json:"icon"`
 }
 
 type Config struct {

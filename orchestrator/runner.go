@@ -2,8 +2,10 @@ package orchestrator
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -194,13 +196,36 @@ func (r *Runner) runOnce(cfg *config.Config) {
 	// Initialize states & remove missing projects from states
 	r.mu.Lock()
 	stateChanged := false
+	configChanged := false
 	
 	activeProjects := make(map[string]bool)
-	for _, proj := range cfg.Projects {
+	for i, proj := range cfg.Projects {
 		activeProjects[proj.Name] = true
 		if _, exists := r.States[proj.Name]; !exists {
 			r.States[proj.Name] = &ProjectState{Status: "disabled"}
 			stateChanged = true
+		}
+
+		// Port Management logic via .env (EnvVars)
+		hasPort := false
+		lines := strings.Split(proj.EnvVars, "\n")
+		for _, line := range lines {
+			if strings.HasPrefix(strings.TrimSpace(line), "PORT=") {
+				hasPort = true
+				break
+			}
+		}
+
+		if !hasPort && proj.Enabled {
+			port, err := r.Supervisor.FindAvailablePort()
+			if err == nil {
+				if cfg.Projects[i].EnvVars != "" && !strings.HasSuffix(cfg.Projects[i].EnvVars, "\n") {
+					cfg.Projects[i].EnvVars += "\n"
+				}
+				cfg.Projects[i].EnvVars += fmt.Sprintf("PORT=%d", port)
+				configChanged = true
+				log.Printf("[%s] Assigned automatic port to .env: %d", proj.Name, port)
+			}
 		}
 	}
 
@@ -213,6 +238,10 @@ func (r *Runner) runOnce(cfg *config.Config) {
 			delete(r.States, name)
 			stateChanged = true
 		}
+	}
+
+	if configChanged {
+		config.SaveConfig(r.ConfigPath, cfg)
 	}
 
 	if stateChanged {
