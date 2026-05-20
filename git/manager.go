@@ -18,6 +18,10 @@ func NewManager(baseDir, token string) *Manager {
 	return &Manager{BaseDir: baseDir, Token: token}
 }
 
+func (m *Manager) SetToken(token string) {
+	m.Token = token
+}
+
 func (m *Manager) EnsureRepo(projectName, repoURL, branch string) error {
 	repoDir := filepath.Join(m.BaseDir, projectName)
 

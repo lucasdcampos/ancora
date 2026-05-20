@@ -22,12 +22,28 @@ type ProjectState struct {
 	Status     string `json:"status"`
 }
 
+type GitManager interface {
+	EnsureRepo(projectName, repoURL, branch string) error
+	Fetch(projectName string) error
+	GetLatestCommitHash(projectName, branch string) (string, error)
+	ResetToCommit(projectName, commitHash string) error
+	SetToken(token string)
+}
+
+type ProcessSupervisor interface {
+	Start(projectName, command, envVars string) (int, error)
+	Stop(pgid int) error
+	RunBuild(projectName, command, envVars string) error
+	GetLogs(projectName string, lines int) (string, error)
+	FindAvailablePort() (int, error)
+}
+
 type Runner struct {
 	ConfigPath    string
 	StatePath     string
 	BaseDir       string
-	Git           *git.Manager
-	Supervisor    *process.Supervisor
+	Git           GitManager
+	Supervisor    ProcessSupervisor
 	States        map[string]*ProjectState
 	mu            sync.Mutex
 	forceSync     chan struct{}
@@ -59,15 +75,10 @@ func (r *Runner) saveState() {
 	}
 }
 
-func (r *Runner) Start() {
+func (r *Runner) Initialize() {
 	cfg, err := config.LoadConfig(r.ConfigPath)
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
-	}
-
-	interval := cfg.IntervalSeconds
-	if interval <= 0 {
-		interval = 60
 	}
 
 	token := cfg.GithubToken
@@ -81,12 +92,32 @@ func (r *Runner) Start() {
 		}
 	}
 
-	r.Git = git.NewManager(r.BaseDir, token)
-	r.Supervisor = process.NewSupervisor(r.BaseDir)
+	if r.Git == nil {
+		r.Git = git.NewManager(r.BaseDir, token)
+	} else {
+		r.Git.SetToken(token)
+	}
+	if r.Supervisor == nil {
+		r.Supervisor = process.NewSupervisor(r.BaseDir)
+	}
+}
+
+func (r *Runner) Start() {
+	r.Initialize()
+
+	cfg, err := config.LoadConfig(r.ConfigPath)
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	interval := cfg.IntervalSeconds
+	if interval <= 0 {
+		interval = 60
+	}
 
 	log.Printf("Starting orchestrator. Interval: %ds", interval)
 
-	r.runOnce(cfg)
+	r.SyncOnce()
 
 	ticker := time.NewTicker(time.Duration(interval) * time.Second)
 	for {
@@ -117,8 +148,17 @@ func (r *Runner) triggerRun() {
 		}
 	}
 
-	r.Git.Token = token
-	r.runOnce(cfg)
+	r.Git.SetToken(token)
+	r.SyncOnce()
+}
+
+func (r *Runner) SyncOnce() {
+	cfg, err := config.LoadConfig(r.ConfigPath)
+	if err != nil {
+		log.Printf("Error reloading config: %v", err)
+		return
+	}
+	r.syncInternal(cfg)
 }
 
 func (r *Runner) TriggerSync() {
@@ -192,7 +232,7 @@ func (r *Runner) updateStatus(name, status, hash string, pgid int) {
 	}
 }
 
-func (r *Runner) runOnce(cfg *config.Config) {
+func (r *Runner) syncInternal(cfg *config.Config) {
 	// Initialize states & remove missing projects from states
 	r.mu.Lock()
 	stateChanged := false

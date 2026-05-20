@@ -28,7 +28,7 @@ func NewServer(configPath string, runner *orchestrator.Runner, uiFS http.FileSys
 	}
 }
 
-func (s *Server) Start(port string) {
+func (s *Server) SetupRouter() *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
@@ -57,9 +57,23 @@ func (s *Server) Start(port string) {
 	if s.UIFS != nil {
 		fsHandler := http.FileServer(s.UIFS)
 		r.Handle("/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Check if file exists in UI FS
+			file, err := s.UIFS.Open(r.URL.Path)
+			if err != nil {
+				// If not found, serve index.html for SPA routing
+				r.URL.Path = "/"
+			} else {
+				file.Close()
+			}
 			fsHandler.ServeHTTP(w, r)
 		}))
 	}
+
+	return r
+}
+
+func (s *Server) Start(port string) {
+	r := s.SetupRouter()
 
 	log.Printf("Starting API server on port %s", port)
 	if err := http.ListenAndServe(":"+port, r); err != nil {

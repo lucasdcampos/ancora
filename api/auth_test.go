@@ -28,17 +28,7 @@ func setupTestServer(t *testing.T) (*chi.Mux, string) {
 	runner := orchestrator.NewRunner(configPath, filepath.Join(tempDir, "state.json"), tempDir, make([]byte, 32))
 	server := NewServer(configPath, runner, nil, make([]byte, 32))
 
-	r := chi.NewRouter()
-	r.Post("/api/auth/bootstrap", server.HandleBootstrap)
-	r.Post("/api/auth/login", server.HandleLogin)
-	r.Post("/api/auth/logout", server.HandleLogout)
-
-	r.Group(func(r chi.Router) {
-		r.Use(server.JWTMiddleware)
-		r.Get("/api/config", server.HandleGetConfig)
-	})
-
-	return r, configPath
+	return server.SetupRouter(), configPath
 }
 
 func TestAuthFlow(t *testing.T) {

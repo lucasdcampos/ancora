@@ -93,7 +93,7 @@ func TestOrchestratorLifecycle(t *testing.T) {
 	runner.Supervisor = process.NewSupervisor(baseDir)
 
 	// 4. Test Initial Run
-	runner.runOnce(cfg)
+	runner.SyncOnce()
 
 	state := runner.States["test-app"]
 	if state == nil || state.PGID == 0 {
@@ -118,7 +118,7 @@ func TestOrchestratorLifecycle(t *testing.T) {
 		t.Fatalf("Failed to create new commit: %v", err)
 	}
 
-	runner.runOnce(cfg)
+	runner.SyncOnce()
 
 	pgid2 := state.PGID
 	if pgid2 == pgid1 {
@@ -138,7 +138,9 @@ func TestOrchestratorLifecycle(t *testing.T) {
 
 	// 6. Test Disable Project
 	cfg.Projects[0].Enabled = false
-	runner.runOnce(cfg)
+	data, _ = json.Marshal(cfg)
+	os.WriteFile(configPath, data, 0644)
+	runner.SyncOnce()
 
 	if state.PGID != 0 {
 		t.Fatalf("Expected PGID to be 0 after disabling, got %d", state.PGID)
